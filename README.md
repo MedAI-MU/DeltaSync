@@ -1,24 +1,43 @@
-# DeltaSync
+# DeltaSync (Java)
 
-DeltaSync updates remote files efficiently by sending only the changed blocks over TCP. It uses fixed-size block hashing, zlib compression, a PSK/HMAC handshake, and a full-file verification step after patching.
+DeltaSync updates remote files efficiently by sending only the changed blocks over TCP. It uses fixed-size block hashing, zlib compression, a PSK/HMAC handshake, and a full-file verification step after patching. This version is a complete rewrite in Java 21 using standard libraries and Gson.
 
 ## Quick Start
 
-Start Poetry environment and install dependencies:
+### Building from Source
+
+Ensure you have Java 21 and Maven installed. Then compile and package the fat JAR:
 
 ```bash
-eval $(poetry env activate)
-poetry install
+mvn clean package
 ```
 
-Start the server:
+The resulting executable JAR will be located at `target/deltasync-1.0-SNAPSHOT.jar`.
+
+### Start the Server
+
 ```bash
-python ./main.py server 0.0.0.0 9000 --base-dir . --psk your_key
+export DELTA_SYNC_PSK="your_key"
+java -jar target/deltasync-1.0-SNAPSHOT.jar server 0.0.0.0 9000 --base-dir .
 ```
 
-Sync a local file:
+Alternatively, you can provide the PSK inline:
+
 ```bash
-python ./main.py sync 127.0.0.1 9000 /path/to/data.bin --psk your_key
+java -jar target/deltasync-1.0-SNAPSHOT.jar server 0.0.0.0 9000 --base-dir . --psk your_key
+```
+
+### Sync a Local File
+
+```bash
+export DELTA_SYNC_PSK="your_key"
+java -jar target/deltasync-1.0-SNAPSHOT.jar sync 127.0.0.1 9000 /path/to/data.bin
+```
+
+Alternatively, you can provide the PSK inline:
+
+```bash
+java -jar target/deltasync-1.0-SNAPSHOT.jar sync 127.0.0.1 9000 /path/to/data.bin --psk your_key
 ```
 
 ## Commands
@@ -42,11 +61,10 @@ Uploads only the changed blocks to the server.
 - **`-b`, `--block-size` (optional)**: Block size in bytes. Default: `65536`.
 - **`--timeout` (optional, float)**: Connection timeout in seconds. Default: `10.0`.
 - **`--psk` (optional)**: Pre‑shared key for handshake. If omitted, the client reads `DELTA_SYNC_PSK` from the environment.
-- **`--no-progress` (optional flag)**: Disables the `tqdm` progress bar.
+- **`--no-progress` (optional flag)**: Disables the terminal progress bar.
 
 ## Security, Integrity, and Performance
 
 - **Handshake:** The client signs metadata with HMAC‑SHA256 and a PSK. The server verifies before accepting blocks.
 - **Integrity:** After patching, the server re-hashes the full file and compares with the client’s hash.
 - **Compression:** Blocks are compressed with zlib to reduce bandwidth.
-- **Progress:** `sync` uses `tqdm` for upload progress. Install with `pip install tqdm`.
