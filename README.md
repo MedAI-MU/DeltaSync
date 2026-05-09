@@ -4,16 +4,21 @@ DeltaSync updates remote files efficiently by sending only the changed blocks ov
 
 ## Quick Start
 
-Start the server:
+Start Poetry environment and install dependencies:
+
+```bash
+eval $(poetry env activate)
+poetry install
 ```
-DeltaSync/main.py#L1-1
-python -m DeltaSync.main server 0.0.0.0 9000 --base-dir . --psk your_key
+
+Start the server:
+```bash
+python ./main.py server 0.0.0.0 9000 --base-dir . --psk your_key
 ```
 
 Sync a local file:
-```
-DeltaSync/main.py#L1-1
-python -m DeltaSync.main sync 127.0.0.1 9000 /path/to/data.bin --psk your_key
+```bash
+python ./main.py sync 127.0.0.1 9000 /path/to/data.bin --psk your_key
 ```
 
 ## Commands
