@@ -14,12 +14,14 @@ import java.net.Socket;
  * the Python {@code recv_message} represents as {@code b""}).
  */
 public final class Protocol {
-    private Protocol() { }
+
+    private Protocol() {}
 
     /** Send {@code message} prefixed with a 4-byte big-endian length. */
-    public static void sendMessage(Socket sock, byte[] message) throws IOException {
+    public static void sendMessage(Socket sock, byte[] message)
+        throws IOException {
         DataOutputStream out = new DataOutputStream(sock.getOutputStream());
-        out.writeInt(message.length);   // big-endian by spec of writeInt
+        out.writeInt(message.length); // big-endian by spec of writeInt
         out.write(message);
         out.flush();
     }
@@ -33,7 +35,7 @@ public final class Protocol {
      */
     public static byte[] recvMessage(Socket sock) throws IOException {
         DataInputStream in = new DataInputStream(sock.getInputStream());
-        int length = in.readInt();      // throws EOFException on clean close
+        int length = in.readInt(); // throws EOFException on clean close
         if (length == 0) {
             return new byte[0];
         }

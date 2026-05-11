@@ -15,7 +15,8 @@ import java.util.zip.Inflater;
  * RFC&nbsp;1950 zlib format (2-byte header + Adler-32 trailer).
  */
 public final class Zlib {
-    private Zlib() { }
+
+    private Zlib() {}
 
     /** Compress {@code data} with default zlib settings. */
     public static byte[] compress(byte[] data) {
@@ -23,7 +24,9 @@ public final class Zlib {
         try {
             deflater.setInput(data);
             deflater.finish();
-            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, data.length / 2));
+            ByteArrayOutputStream out = new ByteArrayOutputStream(
+                Math.max(64, data.length / 2)
+            );
             byte[] buf = new byte[8192];
             while (!deflater.finished()) {
                 int n = deflater.deflate(buf);
@@ -44,7 +47,9 @@ public final class Zlib {
         Inflater inflater = new Inflater();
         try {
             inflater.setInput(data);
-            ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(64, data.length * 2));
+            ByteArrayOutputStream out = new ByteArrayOutputStream(
+                Math.max(64, data.length * 2)
+            );
             byte[] buf = new byte[8192];
             while (!inflater.finished()) {
                 int n = inflater.inflate(buf);
@@ -53,7 +58,9 @@ public final class Zlib {
                     // We supplied all input up-front and don't use dictionaries,
                     // so anything other than "finished" is malformed input.
                     if (inflater.needsInput() || inflater.needsDictionary()) {
-                        throw new IOException("zlib: truncated or malformed stream");
+                        throw new IOException(
+                            "zlib: truncated or malformed stream"
+                        );
                     }
                     break;
                 }

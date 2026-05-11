@@ -2,7 +2,6 @@ package com.medai.deltasync;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -11,13 +10,18 @@ public final class CryptoUtil {
 
     private static final SecureRandom RNG = new SecureRandom();
 
-    private CryptoUtil() { }
+    private CryptoUtil() {}
 
     /** HMAC-SHA256 over UTF-8 bytes, returned as lowercase hex. */
     public static String hmacSha256Hex(String key, String message) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
-            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            mac.init(
+                new SecretKeySpec(
+                    key.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA256"
+                )
+            );
             byte[] out = mac.doFinal(message.getBytes(StandardCharsets.UTF_8));
             return HexUtil.toHex(out);
         } catch (Exception e) {

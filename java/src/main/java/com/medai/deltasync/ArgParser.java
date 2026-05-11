@@ -14,31 +14,40 @@ import java.util.Set;
  */
 final class ArgParser {
 
-    private final List<String>          positionals = new ArrayList<>();
-    private final Map<String, String>   options     = new HashMap<>();
-    private final Set<String>           seenFlags   = new HashSet<>();
+    private final List<String> positionals = new ArrayList<>();
+    private final Map<String, String> options = new HashMap<>();
+    private final Set<String> seenFlags = new HashSet<>();
 
     /**
      * @param args            raw argv (sub-command already stripped)
      * @param positionalNames names of expected positional args, in order
      * @param booleanFlags    options that take no value (e.g. {@code --no-progress})
      */
-    ArgParser(String[] args, List<String> positionalNames, Set<String> booleanFlags) {
+    ArgParser(
+        String[] args,
+        List<String> positionalNames,
+        Set<String> booleanFlags
+    ) {
         for (int i = 0; i < args.length; i++) {
             String a = args[i];
             if (a.equals("--")) {
                 // everything after is positional
-                for (int j = i + 1; j < args.length; j++) positionals.add(args[j]);
+                for (int j = i + 1; j < args.length; j++) positionals.add(
+                    args[j]
+                );
                 break;
             }
-            boolean looksLikeOpt = a.startsWith("--") || (a.startsWith("-") && a.length() == 2);
+            boolean looksLikeOpt =
+                a.startsWith("--") || (a.startsWith("-") && a.length() == 2);
             if (looksLikeOpt) {
                 if (booleanFlags.contains(a)) {
                     seenFlags.add(a);
                     continue;
                 }
                 if (i + 1 >= args.length) {
-                    throw new IllegalArgumentException("Missing value for option " + a);
+                    throw new IllegalArgumentException(
+                        "Missing value for option " + a
+                    );
                 }
                 options.put(a, args[++i]);
             } else {
@@ -47,11 +56,15 @@ final class ArgParser {
         }
         if (positionals.size() < positionalNames.size()) {
             throw new IllegalArgumentException(
-                "Missing positional argument: " + positionalNames.get(positionals.size()));
+                "Missing positional argument: " +
+                    positionalNames.get(positionals.size())
+            );
         }
     }
 
-    String positional(int idx) { return positionals.get(idx); }
+    String positional(int idx) {
+        return positionals.get(idx);
+    }
 
     /** First name to match wins; {@code def} returned if none present. */
     String opt(List<String> names, String def) {
@@ -61,7 +74,11 @@ final class ArgParser {
         return def;
     }
 
-    String opt(String name, String def) { return options.getOrDefault(name, def); }
+    String opt(String name, String def) {
+        return options.getOrDefault(name, def);
+    }
 
-    boolean flag(String name) { return seenFlags.contains(name); }
+    boolean flag(String name) {
+        return seenFlags.contains(name);
+    }
 }

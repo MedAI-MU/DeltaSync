@@ -23,7 +23,7 @@ public final class BlockAnalysis {
     /** Default block size (64 KiB) — matches Python {@code DEFAULT_BLOCK_SIZE}. */
     public static final int DEFAULT_BLOCK_SIZE = 64 * 1024;
 
-    private BlockAnalysis() { }
+    private BlockAnalysis() {}
 
     /**
      * Build a manifest of SHA-256 hashes, one entry per fixed-size block.
@@ -32,9 +32,14 @@ public final class BlockAnalysis {
      * the Python implementation's behavior of yielding whatever
      * {@code file.read(blockSize)} returns.
      */
-    public static List<ManifestEntry> buildManifest(Path filePath, int blockSize) throws IOException {
+    public static List<ManifestEntry> buildManifest(
+        Path filePath,
+        int blockSize
+    ) throws IOException {
         if (blockSize <= 0) {
-            throw new IllegalArgumentException("blockSize must be a positive integer");
+            throw new IllegalArgumentException(
+                "blockSize must be a positive integer"
+            );
         }
 
         List<ManifestEntry> manifest = new ArrayList<>();
@@ -56,7 +61,8 @@ public final class BlockAnalysis {
     }
 
     /** Compute the SHA-256 of an entire file (hex). */
-    public static String computeFileHash(Path filePath, int blockSize) throws IOException {
+    public static String computeFileHash(Path filePath, int blockSize)
+        throws IOException {
         MessageDigest md = sha256();
         byte[] buf = new byte[blockSize];
         try (InputStream in = Files.newInputStream(filePath)) {
@@ -73,11 +79,13 @@ public final class BlockAnalysis {
      * An index appearing in only one manifest, or in both with different hashes,
      * is considered changed.
      */
-    public static List<Integer> compareManifests(List<ManifestEntry> local,
-                                                 List<ManifestEntry> remote) {
+    public static List<Integer> compareManifests(
+        List<ManifestEntry> local,
+        List<ManifestEntry> remote
+    ) {
         Map<Integer, String> localMap = new HashMap<>();
         Map<Integer, String> remoteMap = new HashMap<>();
-        for (ManifestEntry e : local)  localMap.put(e.index(),  e.hash());
+        for (ManifestEntry e : local) localMap.put(e.index(), e.hash());
         for (ManifestEntry e : remote) remoteMap.put(e.index(), e.hash());
 
         TreeSet<Integer> all = new TreeSet<>();
@@ -100,7 +108,8 @@ public final class BlockAnalysis {
      * reads — equivalent to a single Python {@code file.read(blockSize)}
      * which collapses any underlying short reads.
      */
-    private static int readBlock(InputStream in, byte[] buf) throws IOException {
+    private static int readBlock(InputStream in, byte[] buf)
+        throws IOException {
         int total = 0;
         while (total < buf.length) {
             int n = in.read(buf, total, buf.length - total);

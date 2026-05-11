@@ -11,5 +11,4 @@ package com.medai.deltasync;
  * @param hash       hex SHA-256 digest of the block
  * @param startByte  starting byte offset of the block within the file
  */
-public record ManifestEntry(int index, String hash, long startByte) {
-}
+public record ManifestEntry(int index, String hash, long startByte) {}

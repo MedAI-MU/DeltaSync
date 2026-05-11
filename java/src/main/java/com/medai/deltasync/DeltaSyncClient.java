@@ -13,42 +13,43 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/**
- * Java port of the client half of {@code scripts/fixed_block_analysis.py}.
- *
- * <p>Computes a local manifest, asks the server for its manifest, diffs
- * them, and uploads only the blocks that differ — guarded by an HMAC-SHA256
- * handshake and verified by a whole-file hash comparison on the server.
- */
 public final class DeltaSyncClient {
 
-    private DeltaSyncClient() { }
+    private DeltaSyncClient() {}
 
-    /**
-     * Sync {@code filePath} to the remote server. Returns the list of block
-     * indices that were actually uploaded.
-     */
-    public static List<Integer> sendDeltaSync(String host,
-                                              int    port,
-                                              Path   filePath,
-                                              String remoteFilename,
-                                              int    blockSize,
-                                              double timeoutSeconds,
-                                              String psk,
-                                              boolean showProgress) throws IOException {
-
+    public static List<Integer> sendDeltaSync(
+        String host,
+        int port,
+        Path filePath,
+        String remoteFilename,
+        int blockSize,
+        double timeoutSeconds,
+        String psk,
+        boolean showProgress
+    ) throws IOException {
         if (remoteFilename == null || remoteFilename.isEmpty()) {
             remoteFilename = filePath.getFileName().toString();
         }
 
         // Build local manifest, fetch remote, compute the upload set.
-        List<ManifestEntry> localManifest  = BlockAnalysis.buildManifest(filePath, blockSize);
-        List<ManifestEntry> remoteManifest = requestManifest(host, port, remoteFilename, timeoutSeconds, true);
-        List<Integer> diffIndices = BlockAnalysis.compareManifests(localManifest, remoteManifest);
+        List<ManifestEntry> localManifest = BlockAnalysis.buildManifest(
+            filePath,
+            blockSize
+        );
+        List<ManifestEntry> remoteManifest = requestManifest(
+            host,
+            port,
+            remoteFilename,
+            timeoutSeconds,
+            true
+        );
+        List<Integer> diffIndices = BlockAnalysis.compareManifests(
+            localManifest,
+            remoteManifest
+        );
 
         Set<Integer> localIndexSet = new HashSet<>();
         for (ManifestEntry e : localManifest) localIndexSet.add(e.index());
@@ -58,30 +59,43 @@ public final class DeltaSyncClient {
             if (localIndexSet.contains(idx)) sendIndices.add(idx);
         }
 
-        long   fileSize = Files.size(filePath);
+        long fileSize = Files.size(filePath);
         String fullHash = BlockAnalysis.computeFileHash(filePath, blockSize);
 
         // PSK: explicit arg, else env var.
-        String resolvedPsk = (psk != null && !psk.isEmpty()) ? psk : System.getenv("DELTA_SYNC_PSK");
+        String resolvedPsk = (psk != null && !psk.isEmpty())
+            ? psk
+            : System.getenv("DELTA_SYNC_PSK");
         if (resolvedPsk == null || resolvedPsk.isEmpty()) {
             throw new IllegalStateException("PSK is required for delta sync");
         }
 
         // HMAC handshake — exact wire format: nonce:filename:fileSize:blockSize:fullHash
-        String nonce          = CryptoUtil.tokenHex(16);
-        String signingPayload = nonce + ":" + remoteFilename + ":" + fileSize + ":"
-                              + blockSize + ":" + fullHash;
-        String signature      = CryptoUtil.hmacSha256Hex(resolvedPsk, signingPayload);
+        String nonce = CryptoUtil.tokenHex(16);
+        String signingPayload =
+            nonce +
+            ":" +
+            remoteFilename +
+            ":" +
+            fileSize +
+            ":" +
+            blockSize +
+            ":" +
+            fullHash;
+        String signature = CryptoUtil.hmacSha256Hex(
+            resolvedPsk,
+            signingPayload
+        );
 
         JSONObject payload = new JSONObject()
-                .put("command",      "APPLY_DELTA")
-                .put("filename",     remoteFilename)
-                .put("block_size",   blockSize)
-                .put("file_size",    fileSize)
-                .put("blocks_count", sendIndices.size())
-                .put("full_hash",    fullHash)
-                .put("nonce",        nonce)
-                .put("hmac",         signature);
+            .put("command", "APPLY_DELTA")
+            .put("filename", remoteFilename)
+            .put("block_size", blockSize)
+            .put("file_size", fileSize)
+            .put("blocks_count", sendIndices.size())
+            .put("full_hash", fullHash)
+            .put("nonce", nonce)
+            .put("hmac", signature);
 
         long totalBytes = 0L;
         for (int idx : sendIndices) {
@@ -90,20 +104,33 @@ public final class DeltaSyncClient {
         }
 
         int timeoutMs = (int) (timeoutSeconds * 1000);
-        try (Socket sock = new Socket();
-             ProgressBar bar = showProgress ? new ProgressBar(totalBytes, "Uploading") : null) {
-
+        try (
+            Socket sock = new Socket();
+            ProgressBar bar = showProgress
+                ? new ProgressBar(totalBytes, "Uploading")
+                : null
+        ) {
             sock.connect(new InetSocketAddress(host, port), timeoutMs);
             sock.setSoTimeout(timeoutMs);
 
             try {
-                Protocol.sendMessage(sock, payload.toString().getBytes(StandardCharsets.UTF_8));
+                Protocol.sendMessage(
+                    sock,
+                    payload.toString().getBytes(StandardCharsets.UTF_8)
+                );
 
-                try (RandomAccessFile raf = new RandomAccessFile(filePath.toFile(), "r")) {
+                try (
+                    RandomAccessFile raf = new RandomAccessFile(
+                        filePath.toFile(),
+                        "r"
+                    )
+                ) {
                     byte[] buf = new byte[blockSize];
                     for (int idx : sendIndices) {
                         if (idx < 0) {
-                            throw new IllegalArgumentException("Block index must be non-negative");
+                            throw new IllegalArgumentException(
+                                "Block index must be non-negative"
+                            );
                         }
                         raf.seek((long) idx * blockSize);
                         int n = raf.read(buf);
@@ -114,7 +141,9 @@ public final class DeltaSyncClient {
                         byte[] compressed = Zlib.compress(data);
 
                         // Block frame: !II header (index, len(compressed)) + compressed bytes
-                        ByteBuffer bb = ByteBuffer.allocate(8 + compressed.length).order(ByteOrder.BIG_ENDIAN);
+                        ByteBuffer bb = ByteBuffer.allocate(
+                            8 + compressed.length
+                        ).order(ByteOrder.BIG_ENDIAN);
                         bb.putInt(idx);
                         bb.putInt(compressed.length);
                         bb.put(compressed);
@@ -131,7 +160,10 @@ public final class DeltaSyncClient {
                 // real reason instead.
                 String earlyError = tryReadEarlyError(sock);
                 if (earlyError != null) {
-                    throw new IOException("Server error: " + earlyError, writeFailure);
+                    throw new IOException(
+                        "Server error: " + earlyError,
+                        writeFailure
+                    );
                 }
                 throw writeFailure;
             }
@@ -140,9 +172,13 @@ public final class DeltaSyncClient {
             if (responseRaw.length == 0) {
                 throw new IOException("Empty response from server");
             }
-            JSONObject response = new JSONObject(new String(responseRaw, StandardCharsets.UTF_8));
+            JSONObject response = new JSONObject(
+                new String(responseRaw, StandardCharsets.UTF_8)
+            );
             if (response.has("error")) {
-                throw new IOException("Server error: " + response.getString("error"));
+                throw new IOException(
+                    "Server error: " + response.getString("error")
+                );
             }
         }
 
@@ -159,7 +195,9 @@ public final class DeltaSyncClient {
             sock.setSoTimeout(500);
             byte[] resp = Protocol.recvMessage(sock);
             if (resp.length == 0) return null;
-            JSONObject obj = new JSONObject(new String(resp, StandardCharsets.UTF_8));
+            JSONObject obj = new JSONObject(
+                new String(resp, StandardCharsets.UTF_8)
+            );
             return obj.optString("error", null);
         } catch (Exception ignored) {
             return null;
@@ -173,14 +211,16 @@ public final class DeltaSyncClient {
      *                     becomes an empty manifest instead of an exception
      *                     (this is what we want for the first-ever sync).
      */
-    public static List<ManifestEntry> requestManifest(String host,
-                                                      int    port,
-                                                      String filename,
-                                                      double timeoutSeconds,
-                                                      boolean allowMissing) throws IOException {
+    public static List<ManifestEntry> requestManifest(
+        String host,
+        int port,
+        String filename,
+        double timeoutSeconds,
+        boolean allowMissing
+    ) throws IOException {
         JSONObject payload = new JSONObject()
-                .put("command",  "GET_MANIFEST")
-                .put("filename", filename);
+            .put("command", "GET_MANIFEST")
+            .put("filename", filename);
 
         int timeoutMs = (int) (timeoutSeconds * 1000);
         byte[] responseRaw;
@@ -188,7 +228,10 @@ public final class DeltaSyncClient {
         try (Socket sock = new Socket()) {
             sock.connect(new InetSocketAddress(host, port), timeoutMs);
             sock.setSoTimeout(timeoutMs);
-            Protocol.sendMessage(sock, payload.toString().getBytes(StandardCharsets.UTF_8));
+            Protocol.sendMessage(
+                sock,
+                payload.toString().getBytes(StandardCharsets.UTF_8)
+            );
             responseRaw = Protocol.recvMessage(sock);
         }
 
@@ -196,7 +239,9 @@ public final class DeltaSyncClient {
             throw new IOException("Empty response from server");
         }
 
-        JSONObject response = new JSONObject(new String(responseRaw, StandardCharsets.UTF_8));
+        JSONObject response = new JSONObject(
+            new String(responseRaw, StandardCharsets.UTF_8)
+        );
         if (response.has("error")) {
             String err = response.getString("error");
             if (allowMissing && "NOT_FOUND".equals(err)) {
@@ -214,9 +259,9 @@ public final class DeltaSyncClient {
         List<ManifestEntry> out = new ArrayList<>(arr.length());
         for (int i = 0; i < arr.length(); i++) {
             JSONObject e = arr.getJSONObject(i);
-            int   idx       = e.getInt("index");
-            String hash     = e.getString("hash");
-            long  startByte = e.getLong("start_byte");
+            int idx = e.getInt("index");
+            String hash = e.getString("hash");
+            long startByte = e.getLong("start_byte");
             out.add(new ManifestEntry(idx, hash, startByte));
         }
         return out;
